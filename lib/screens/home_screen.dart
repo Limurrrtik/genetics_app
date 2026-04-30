@@ -4,6 +4,7 @@ import '../models/organism.dart';
 import '../models/allele.dart';
 import '../models/trait_config.dart';
 import '../services/genetics_engine.dart';
+import 'theory_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -62,6 +63,20 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('🧬 Генетика для начинающих'),
         backgroundColor: Colors.green[700],
+              actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const TheoryScreen()),
+            );
+          },
+          child: const Text(
+            '📖 Теория',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
       ),
       body: SingleChildScrollView(
         child: Padding(
