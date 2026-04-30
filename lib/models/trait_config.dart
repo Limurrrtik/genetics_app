@@ -26,5 +26,10 @@ class TraitConfig {
       dominantLabel: 'Положительный (+)',
       recessiveLabel: 'Отрицательный (-)',
     ),
+        TraitConfig(
+      name: '🟤 Форма гороха (Мендель)',
+      dominantLabel: 'Гладкий',
+      recessiveLabel: 'Морщинистый',
+    ),
   ];
 }
