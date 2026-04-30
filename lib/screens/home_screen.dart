@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../models/organism.dart';
 import '../models/allele.dart';
 import '../models/trait_config.dart';
@@ -15,7 +16,6 @@ class _HomeScreenState extends State<HomeScreen> {
   String parent1Genotype = 'Aa';
   String parent2Genotype = 'Aa';
   
-  // Выбранный признак (по умолчанию Горох)
   TraitConfig currentTrait = TraitConfig.availableTraits[0];
 
   Organism? parent1;
@@ -49,7 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Функция для определения текста признака
   String _getPhenotypeText(Organism org) {
     if (org.allele1 == Allele.dominant || org.allele2 == Allele.dominant) {
       return currentTrait.dominantLabel;
@@ -70,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              //  ВЫБОР ПРИЗНАКА
               Card(
                 color: Colors.blue[50],
                 child: Padding(
@@ -108,13 +106,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Родитель 1
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      Text('👨‍👩‍👧‍ Родитель 1', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('👨‍👩‍‍ Родитель 1', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       DropdownButton<String>(
                         value: parent1Genotype,
@@ -137,7 +134,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               
-              // Родитель 2
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
@@ -218,7 +214,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Статистика с НАЗВАНИЯМИ ПРИЗНАКОВ
+                // 📊 КРУГОВАЯ ДИАГРАММА
+                Card(
+                  color: Colors.purple[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const Text(
+                          '📊 Распределение генотипов:',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 200,
+                          child: PieChart(
+                            PieChartData(
+                              sections: _generatePieChartSections(),
+                              sectionsSpace: 2,
+                              centerSpaceRadius: 40,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        // Легенда диаграммы
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 8,
+                          children: offspring.entries.map((entry) {
+                            final percentage = (entry.value / 4 * 100).toInt();
+                            final phenotypeText = _getPhenotypeText(Organism(
+                              entry.key[0] == 'A' ? Allele.dominant : Allele.recessive,
+                              entry.key[1] == 'A' ? Allele.dominant : Allele.recessive,
+                            ));
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: _getColorForGenotype(entry.key),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text('${entry.key}: $percentage%'),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
                 Card(
                   color: Colors.green[50],
                   child: Padding(
@@ -233,7 +284,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 8),
                         ...offspring.entries.map((entry) {
                           final percentage = (entry.value / 4 * 100).toInt();
-                          // Получаем текст признака из любого потомка этого генотипа
                           final phenotypeText = _getPhenotypeText(Organism(
                             entry.key[0] == 'A' ? Allele.dominant : Allele.recessive,
                             entry.key[1] == 'A' ? Allele.dominant : Allele.recessive,
@@ -263,6 +313,48 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  // Генерация секторов для диаграммы
+  List<PieChartSectionData> _generatePieChartSections() {
+    final sections = <PieChartSectionData>[];
+    final colors = [Colors.blue, Colors.orange, Colors.red, Colors.purple];
+    int index = 0;
+    
+    offspring.forEach((genotype, count) {
+      final percentage = (count / 4 * 100).toInt();
+      sections.add(
+        PieChartSectionData(
+          value: count.toDouble(),
+          title: '$genotype\n$percentage%',
+          color: _getColorForGenotype(genotype),
+          radius: 60,
+          titleStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+      );
+      index++;
+    });
+    
+    return sections;
+  }
+
+  Color _getColorForGenotype(String genotype) {
+    switch (genotype) {
+      case 'AA':
+        return Colors.blue;
+      case 'Aa':
+        return Colors.orange;
+      case 'aA':
+        return Colors.purple;
+      case 'aa':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildPunnettCell(String text, {bool isHeader = false}) {
