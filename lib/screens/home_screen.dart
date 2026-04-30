@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/organism.dart';
 import '../models/allele.dart';
+import '../models/trait_config.dart';
 import '../services/genetics_engine.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,10 +15,13 @@ class _HomeScreenState extends State<HomeScreen> {
   String parent1Genotype = 'Aa';
   String parent2Genotype = 'Aa';
   
+  // Выбранный признак (по умолчанию Горох)
+  TraitConfig currentTrait = TraitConfig.availableTraits[0];
+
   Organism? parent1;
   Organism? parent2;
   Map<String, int> offspring = {};
-  List<Organism> punnettResults = []; // Для решётки Пеннета
+  List<Organism> punnettResults = [];
   bool hasResults = false;
 
   Organism _createOrganismFromGenotype(String genotype) {
@@ -31,10 +35,8 @@ class _HomeScreenState extends State<HomeScreen> {
       parent1 = _createOrganismFromGenotype(parent1Genotype);
       parent2 = _createOrganismFromGenotype(parent2Genotype);
       
-      // Считаем статистику
       offspring = GeneticsEngine.cross(parent1!, parent2!);
       
-      // Считаем для решётки Пеннета (по порядку)
       final g1 = [parent1!.allele1, parent1!.allele2];
       final g2 = [parent2!.allele1, parent2!.allele2];
       punnettResults = [];
@@ -43,9 +45,16 @@ class _HomeScreenState extends State<HomeScreen> {
           punnettResults.add(Organism(a1, a2));
         }
       }
-      
       hasResults = true;
     });
+  }
+
+  // Функция для определения текста признака
+  String _getPhenotypeText(Organism org) {
+    if (org.allele1 == Allele.dominant || org.allele2 == Allele.dominant) {
+      return currentTrait.dominantLabel;
+    }
+    return currentTrait.recessiveLabel;
   }
 
   @override
@@ -61,6 +70,37 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              //  ВЫБОР ПРИЗНАКА
+              Card(
+                color: Colors.blue[50],
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: [
+                      const Text('Выберите признак для изучения:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      DropdownButton<TraitConfig>(
+                        isExpanded: true,
+                        value: currentTrait,
+                        items: TraitConfig.availableTraits.map((TraitConfig value) {
+                          return DropdownMenuItem<TraitConfig>(
+                            value: value,
+                            child: Text(value.name),
+                          );
+                        }).toList(),
+                        onChanged: (TraitConfig? newValue) {
+                          setState(() {
+                            currentTrait = newValue!;
+                            hasResults = false;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
               const Text(
                 'Симулятор скрещивания',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -68,13 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
               
-              // Выбор Родителя 1
+              // Родитель 1
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      Text('👨‍‍👧‍ Родитель 1', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('👨‍👩‍👧‍ Родитель 1', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       DropdownButton<String>(
                         value: parent1Genotype,
@@ -97,13 +137,13 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 12),
               
-              // Выбор Родителя 2
+              // Родитель 2
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Column(
                     children: [
-                      Text('👨‍‍👧‍ Родитель 2', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text('👨‍👧‍ Родитель 2', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       DropdownButton<String>(
                         value: parent2Genotype,
@@ -139,33 +179,29 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 20),
               
-              // РЕШЁТКА ПЕННЕТА
               if (hasResults) ...[
                 const Text(
-                  ' Решётка Пеннета:',
+                  '🧩 Решётка Пеннета:',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
-                // Сама таблица
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Верхняя строка (аллели родителя 1)
                     Column(
                       children: [
-                        const SizedBox(height: 40), // Отступ под заголовок
+                        const SizedBox(height: 40),
                         _buildPunnettCell(parent1!.allele1.symbol, isHeader: true),
                         _buildPunnettCell(parent1!.allele2.symbol, isHeader: true),
                       ],
                     ),
                     Column(
                       children: [
-                        // Заголовки слева (аллели родителя 2) и ячейки
                         Row(
                           children: [
                             _buildPunnettCell(parent2!.allele1.symbol, isHeader: true),
-                            _buildPunnettResultCell(punnettResults[0]), // AA или Aa
+                            _buildPunnettResultCell(punnettResults[0]),
                             _buildPunnettResultCell(punnettResults[1]),
                           ],
                         ),
@@ -182,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
                 
-                // Текстовая статистика
+                // Статистика с НАЗВАНИЯМИ ПРИЗНАКОВ
                 Card(
                   color: Colors.green[50],
                   child: Padding(
@@ -191,13 +227,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          '📈 Вероятности:',
+                          '📈 Вероятности появления признака:',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
                         ...offspring.entries.map((entry) {
                           final percentage = (entry.value / 4 * 100).toInt();
-                          final phenotype = GeneticsEngine.getPhenotype(entry.key);
+                          // Получаем текст признака из любого потомка этого генотипа
+                          final phenotypeText = _getPhenotypeText(Organism(
+                            entry.key[0] == 'A' ? Allele.dominant : Allele.recessive,
+                            entry.key[1] == 'A' ? Allele.dominant : Allele.recessive,
+                          ));
+                          
                           return Padding(
                             padding: const EdgeInsets.symmetric(vertical: 4),
                             child: Row(
@@ -205,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 Icon(Icons.circle, size: 10, color: Colors.green[700]),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Генотип ${entry.key}: ${percentage}% — $phenotype',
+                                  'Генотип ${entry.key}: ${percentage}% — $phenotypeText',
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ],
@@ -224,7 +265,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Вспомогательный виджет для ячеек таблицы
   Widget _buildPunnettCell(String text, {bool isHeader = false}) {
     return Container(
       width: 50,
@@ -248,7 +288,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Виджет для ячейки с результатом
   Widget _buildPunnettResultCell(Organism org) {
     return Container(
       width: 60,
