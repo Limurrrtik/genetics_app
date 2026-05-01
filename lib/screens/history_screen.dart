@@ -102,14 +102,24 @@ class HistoryScreen extends StatelessWidget {
             
             // Результаты
             const Text('📊 Результаты:', style: TextStyle(fontWeight: FontWeight.bold)),
-            ...item.offspring.entries.map((e) {
-              final total = item.isDihybrid ? 16 : 4;
-              final pct = (e.value / total * 100).toInt();
-              return Text(
-                '• ${e.key}: $pct%',
-                style: const TextStyle(fontSize: 12),
-              );
-            }),
+              ...item.offspring.entries.map((e) {
+                final total = item.isDihybrid ? 16 : 4;
+                final pct = (e.value / total * 100).toInt();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '• Генотип ${e.key}: $pct%',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '  ${item.getZygosity(e.key)}', // <-- Вот новая строчка!
+                      style: TextStyle(fontSize: 11, color: Colors.grey[700], fontStyle: FontStyle.italic),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+                );
+              }),
           ],
         ),
       ),
