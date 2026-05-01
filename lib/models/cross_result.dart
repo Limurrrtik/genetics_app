@@ -29,4 +29,29 @@ class CrossResult {
     final traitName = trait1.name.split(' ').first;
     return '$traitName: $p1 × $p2 → ${offspring.length} генотип(ов)';
   }
+    // Определяем тип зиготности
+  String getZygosity(String genotype) {
+    // Если режим "Моно" (AA, Aa, aa)
+    if (!isDihybrid) {
+      if (genotype == 'AA' || genotype == 'aa') {
+        return '🛡️ Гомозигота';
+      }
+      return '🔄 Гетерозигота';
+    }
+    
+    // Если режим "Ди" (AABB, AaBb и т.д.)
+    final t1 = genotype.substring(0, 2); // Первые две буквы (A/a)
+    final t2 = genotype.substring(2, 4); // Вторые две буквы (B/b)
+    
+    bool isHomo1 = (t1[0] == t1[1]);
+    bool isHomo2 = (t2[0] == t2[1]);
+    
+    if (isHomo1 && isHomo2) {
+      return '🛡️ Гомозигота (по обоим признакам)';
+    } else if (!isHomo1 && !isHomo2) {
+      return '🔄 Дигетерозигота';
+    } else {
+      return '🔄 Гетерозигота (по одному признаку)';
+    }
+  }
 }

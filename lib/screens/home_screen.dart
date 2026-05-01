@@ -81,6 +81,23 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  // 🎲 Логика случайного эксперимента
+  void _randomExperiment() {
+    setState(() {
+      final traits = TraitConfig.availableTraits;
+      final random = DateTime.now().millisecond;
+      trait1 = traits[random % traits.length];
+      trait2 = traits[(random + 1) % traits.length];
+      final genotypes = ['AA', 'Aa', 'aa'];
+      final bGenotypes = ['BB', 'Bb', 'bb'];
+      p1t1 = genotypes[random % 3];
+      p1t2 = bGenotypes[(random + 2) % 3];
+      p2t1 = genotypes[(random + 4) % 3];
+      p2t2 = bGenotypes[(random + 6) % 3];
+      hasResults = false;
+    });
+  }
+
   String _getPhenotype(String genotype) {
     if (isDihybrid) {
       return GeneticsEngine.getPhenotypeDi(
@@ -155,6 +172,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ],
                   ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // 🎲 Кнопка случайного эксперимента
+              ElevatedButton.icon(
+                onPressed: _randomExperiment,
+                icon: const Icon(Icons.casino),
+                label: const Text('Случайный эксперимент'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[300],
+                  foregroundColor: Colors.black87,
                 ),
               ),
               const SizedBox(height: 16),
