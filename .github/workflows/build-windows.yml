@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build App
 
 on:
   push:
@@ -6,27 +6,38 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          flutter-version-file: pubspec.yaml
+      
+      - run: flutter pub get
+      - run: flutter build web --release
+      
+      - uses: actions/upload-artifact@v4
+        with:
+          name: genetics-app-web
+          path: build/web/
+
   build-windows:
     runs-on: windows-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0'
           channel: 'stable'
+          flutter-version-file: pubspec.yaml
       
-      - name: Install dependencies
-        run: flutter pub get
+      - run: flutter pub get
+      - run: flutter build windows --release
       
-      - name: Build Windows
-        run: flutter build windows --release
-      
-      - name: Upload Windows EXE
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: genetics-app-windows
           path: build/windows/runner/Release/
