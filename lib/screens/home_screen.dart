@@ -1,14 +1,25 @@
-import 'history_screen.dart';
+// ════════════════════════════════════════════════════════════════════════════
+// 📦 ИМПОРТЫ БИБЛИОТЕК
+// ════════════════════════════════════════════════════════════════════════════
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:fl_chart/fl_chart.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../models/organism.dart';
 import '../models/allele.dart';
 import '../models/trait_config.dart';
-import '../models/cross_result.dart'; 
+import '../models/cross_result.dart';
 import '../services/genetics_engine.dart';
 import '../services/history_service.dart';
 import 'theory_screen.dart';
+import 'history_screen.dart';
 
+// ════════════════════════════════════════════════════════════════════════════
+// 🏠 ГЛАВНЫЙ ЭКРАН ПРИЛОЖЕНИЯ
+// ════════════════════════════════════════════════════════════════════════════
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -16,21 +27,30 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  bool isDihybrid = false;
-  TraitConfig trait1 = TraitConfig.availableTraits[0];
+  // ──────────────────────────────────────────────────────────────────────────
+  // 📊 ПЕРЕМЕННЫЕ СОСТОЯНИЯ (данные экрана)
+  // ──────────────────────────────────────────────────────────────────────────
+  bool isDihybrid = false; // false = моногибридное, true = дигибридное
+  TraitConfig trait1 = TraitConfig.availableTraits[0]; // Первый признак
   TraitConfig trait2 = TraitConfig.availableTraits.length > 1 
-      ? TraitConfig.availableTraits[1] : TraitConfig.availableTraits[0];
+      ? TraitConfig.availableTraits[1] : TraitConfig.availableTraits[0]; // Второй признак
   
-  String p1t1 = 'Aa', p1t2 = 'Bb';
-  String p2t1 = 'Aa', p2t2 = 'Bb';
+  String p1t1 = 'Aa', p1t2 = 'Bb'; // Генотипы родителя 1
+  String p2t1 = 'Aa', p2t2 = 'Bb'; // Генотипы родителя 2
   
-  Map<String, int> results = {};
-  List<String> punnettGrid = [];
-  bool hasResults = false;
+  Map<String, int> results = {}; // Результаты скрещивания (генотип: количество)
+  List<String> punnettGrid = []; // Решётка Пеннета (для отображения)
+  bool hasResults = false; // Есть ли результаты для показа
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // 🔬 ЛОГИКА СКРЕЩИВАНИЯ
+  // ════════════════════════════════════════════════════════════════════════════
+  
+  // 🧬 Основная функция скрещивания
   void _runCross() {
     setState(() {
       if (isDihybrid) {
+        // Дигибридное скрещивание (2 признака)
         results = GeneticsEngine.crossDi(p1t1, p1t2, p2t1, p2t2);
         List<String> getGametes(String t1, String t2) => [
           '${t1[0]}${t2[0]}', '${t1[0]}${t2[1]}', '${t1[1]}${t2[0]}', '${t1[1]}${t2[1]}'
@@ -48,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
       } else {
+        // Моногибридное скрещивание (1 признак)
         final org1 = Organism(
           p1t1[0] == 'A' ? Allele.dominant : Allele.recessive,
           p1t1[1] == 'A' ? Allele.dominant : Allele.recessive,
@@ -66,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
       hasResults = true;
 
-      // 💾 Сохраняем в историю
+      // 💾 Сохраняем результат в историю
       HistoryService.add(CrossResult(
         timestamp: DateTime.now(),
         isDihybrid: isDihybrid,
@@ -81,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // 🎲 Логика случайного эксперимента
+  // 🎲 Случайный эксперимент (генерирует случайные параметры)
   void _randomExperiment() {
     setState(() {
       final traits = TraitConfig.availableTraits;
@@ -91,13 +112,16 @@ class _HomeScreenState extends State<HomeScreen> {
       final genotypes = ['AA', 'Aa', 'aa'];
       final bGenotypes = ['BB', 'Bb', 'bb'];
       p1t1 = genotypes[random % 3];
-      p1t2 = bGenotypes[(random + 2) % 3];
       p2t1 = genotypes[(random + 4) % 3];
-      p2t2 = bGenotypes[(random + 6) % 3];
+      if (isDihybrid) {
+        p1t2 = bGenotypes[(random + 2) % 3];
+        p2t2 = bGenotypes[(random + 6) % 3];
+      }
       hasResults = false;
     });
   }
 
+  // 🧬 Определение фенотипа по генотипу
   String _getPhenotype(String genotype) {
     if (isDihybrid) {
       return GeneticsEngine.getPhenotypeDi(
@@ -115,13 +139,125 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // 📄 ЭКСПОРТ В PDF
+  // ════════════════════════════════════════════════════════════════════════════
+  
+  // 📄 Генерация и скачивание PDF
+  Future<void> _downloadPdf() async {
+    final pdf = pw.Document();
+    final font = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
+    final ttf = pw.Font.ttf(font);
+    
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text('Генетика: Результаты скрещивания',
+                style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, font: ttf)),
+            pw.SizedBox(height: 20),
+            pw.Text('Режим: ${isDihybrid ? "Дигибридное (2 признака)" : "Моногибридное (1 признак)"}',
+                style: pw.TextStyle(fontSize: 16, font: ttf)),
+            pw.Text('Признак 1: ${trait1.name} (A/a)',
+                style: pw.TextStyle(fontSize: 14, font: ttf)),
+            if (isDihybrid)
+              pw.Text('Признак 2: ${trait2.name} (B/b)',
+                  style: pw.TextStyle(fontSize: 14, font: ttf)),
+            pw.SizedBox(height: 16),
+            pw.Text('Родители:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, font: ttf)),
+            pw.Text('Родитель 1: ${isDihybrid ? "$p1t1/$p1t2" : p1t1}',
+                style: pw.TextStyle(fontSize: 14, font: ttf)),
+            pw.Text('Родитель 2: ${isDihybrid ? "$p2t1/$p2t2" : p2t1}',
+                style: pw.TextStyle(fontSize: 14, font: ttf)),
+            pw.SizedBox(height: 16),
+            pw.Text('Решётка Пеннета:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, font: ttf)),
+            pw.SizedBox(height: 8),
+            pw.Table(
+              border: pw.TableBorder.all(),
+              children: _buildPdfPunnettTable(ttf),
+            ),
+            pw.SizedBox(height: 16),
+            pw.Text('Результаты:', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, font: ttf)),
+            ...results.entries.map((e) {
+              final total = isDihybrid ? 16 : 4;
+              final pct = (e.value / total * 100).toInt();
+              return pw.Padding(
+                padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                child: pw.Text('• Генотип ${e.key}: $pct% — ${_getPhenotype(e.key)}',
+                    style: pw.TextStyle(fontSize: 12, font: ttf)),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+    
+    // Создаём байты PDF
+    final bytes = await pdf.save();
+    
+    // Скачиваем файл напрямую (без диалога печати)
+    await Printing.sharePdf(bytes: bytes, filename: 'genetics_result.pdf');
+  }
+  
+  // 📊 Построение таблицы для PDF
+  List<pw.TableRow> _buildPdfPunnettTable(pw.Font ttf) {
+    final size = isDihybrid ? 4 : 2;
+    final rows = <pw.TableRow>[];
+    final topHeaders = isDihybrid 
+        ? ['${p1t1[0]}${p1t2[0]}', '${p1t1[0]}${p1t2[1]}', '${p1t1[1]}${p1t2[0]}', '${p1t1[1]}${p1t2[1]}']
+        : [p1t1[0].toString(), p1t1[1].toString()];
+    
+    rows.add(pw.TableRow(
+      children: [
+        pw.Container(padding: const pw.EdgeInsets.all(4)),
+        ...topHeaders.map((h) => pw.Container(
+          padding: const pw.EdgeInsets.all(4),
+          alignment: pw.Alignment.center,
+          child: pw.Text(h, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: ttf)),
+        )),
+      ],
+    ));
+    
+    for (int i = 0; i < size; i++) {
+      final leftHeader = isDihybrid
+          ? ['${p2t1[0]}${p2t2[0]}', '${p2t1[0]}${p2t2[1]}', '${p2t1[1]}${p2t2[0]}', '${p2t1[1]}${p2t2[1]}'][i]
+          : [p2t1[0].toString(), p2t1[1].toString()][i];
+      
+      rows.add(pw.TableRow(
+        children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.all(4),
+            alignment: pw.Alignment.center,
+            child: pw.Text(leftHeader, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: ttf)),
+          ),
+          for (int j = 0; j < size; j++)
+            pw.Container(
+              padding: const pw.EdgeInsets.all(4),
+              alignment: pw.Alignment.center,
+              child: pw.Text(punnettGrid[i * size + j], style: pw.TextStyle(font: ttf)),
+            ),
+        ],
+      ));
+    }
+    return rows;
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // 🎨 ПОСТРОЕНИЕ ИНТЕРФЕЙСА (UI)
+  // ════════════════════════════════════════════════════════════════════════════
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // ────────────────────────────────────────────────────────────────────────
+      // 🔝 ШАПКА ПРИЛОЖЕНИЯ (AppBar)
+      // ────────────────────────────────────────────────────────────────────────
       appBar: AppBar(
         title: const Text('🧬 Генетика для начинающих', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.green[700],
         actions: [
+          // Кнопка "Теория"
           TextButton(
             onPressed: () => Navigator.push(
               context,
@@ -130,6 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: const Text('📖 Теория',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
+          // Кнопка "История"
           TextButton(
             onPressed: () {
               Navigator.push(
@@ -142,11 +279,16 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      
+      // ────────────────────────────────────────────────────────────────────────
+      // 📋 ОСНОВНОЕ ТЕЛО ЭКРАНА (прокручиваемое)
+      // ────────────────────────────────────────────────────────────────────────
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              // 🎛 КАРТОЧКА: Выбор режима скрещивания (Моно/Ди)
               Card(
                 color: Colors.teal[50],
                 child: Padding(
@@ -175,11 +317,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              // 🎲 Кнопка случайного эксперимента
+              
+              // 🎲 КНОПКА: Случайный эксперимент (для обоих режимов)
               ElevatedButton.icon(
                 onPressed: _randomExperiment,
                 icon: const Icon(Icons.casino),
-                label: const Text('Случайный эксперимент'),
+                label: const Text('🎲 Случайный эксперимент'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange[300],
                   foregroundColor: Colors.black87,
@@ -187,6 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 16),
 
+              // 🧬 ВЫБОР ПРИЗНАКОВ (только для "Ди")
               if (isDihybrid) ...[
                 _buildDropdown('Признак 1 (A/a)', trait1, (v) => setState(() { trait1 = v; hasResults = false; })),
                 const SizedBox(height: 8),
@@ -194,11 +338,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 16),
               ],
 
+              // 👨‍👩‍👧 КАРТОЧКИ РОДИТЕЛЕЙ
               _buildParent('Родитель 1', p1t1, p1t2, (g1, g2) => setState(() { p1t1 = g1; p1t2 = g2; hasResults = false; })),
               const SizedBox(height: 12),
               _buildParent('Родитель 2', p2t1, p2t2, (g1, g2) => setState(() { p2t1 = g1; p2t2 = g2; hasResults = false; })),
               const SizedBox(height: 20),
 
+              // 🧬 КНОПКА: Запустить скрещивание
               ElevatedButton(
                 onPressed: _runCross,
                 style: ElevatedButton.styleFrom(
@@ -210,19 +356,34 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
                 ),
               ),
+              const SizedBox(height: 12),
+              
+              // 📄 КНОПКА: Скачать PDF (появляется только после скрещивания)
+              if (hasResults)
+                ElevatedButton.icon(
+                  onPressed: _downloadPdf,
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('📄 Скачать PDF'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red[300],
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               const SizedBox(height: 20),
 
+              // 📊 РЕЗУЛЬТАТЫ СКРЕЩИВАНИЯ (показываются после нажатия "Скрестить")
               if (hasResults) ...[
+                // Заголовок решётки
                 Text(
                   isDihybrid ? '🧩 Решётка Пеннета (4×4)' : '🧩 Решётка Пеннета (2×2)',
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                _buildGrid(),
+                _buildGrid(), // Сама решётка
                 const SizedBox(height: 20),
-                _buildChart(),
+                _buildChart(), // Диаграмма (круг или столбцы)
                 const SizedBox(height: 16),
-                _buildStats(),
+                _buildStats(), // Список результатов с процентами
               ],
             ],
           ),
@@ -231,6 +392,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ════════════════════════════════════════════════════════════════════════════
+  // 🧩 ВСПОМОГАТЕЛЬНЫЕ ВИДЖЕТЫ (функции для построения UI)
+  // ════════════════════════════════════════════════════════════════════════════
+  
+  // 🔽 Выпадающий список выбора признака
   Widget _buildDropdown(String label, TraitConfig value, ValueChanged<TraitConfig> onChange) {
     return Center(
       child: DropdownButton<TraitConfig>(
@@ -244,14 +410,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 👨‍👩‍👧 Карточка родителя с выбором генотипов
   Widget _buildParent(String title, String t1, String t2, void Function(String, String) onChange) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           children: [
-            Text(title, 
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Center(child: _buildGeno(t1, 'A', (v) => onChange(v, t2))),
             if (isDihybrid) ...[
@@ -264,6 +430,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 🔤 Выпадающий список генотипа (AA, Aa, aa или BB, Bb, bb)
   Widget _buildGeno(String value, String letter, ValueChanged<String> onChange) {
     final opts = letter == 'B' ? ['BB', 'Bb', 'bb'] : ['AA', 'Aa', 'aa'];
     return DropdownButton<String>(
@@ -274,6 +441,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 🧩 Решётка Пеннета (визуальная таблица)
   Widget _buildGrid() {
     final size = isDihybrid ? 4 : 2;
     final cellSize = isDihybrid ? 55.0 : 65.0; 
@@ -321,93 +489,92 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 📊 Диаграмма генотипов (круговая или столбчатая)
   Widget _buildChart() {
-  // Если генотипов много (>5), используем столбцы вместо круга
-  final useBarChart = results.length > 5;
-
-  return Card(
-    color: Colors.purple[50],
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          const Text(' Генотипы', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          
-          if (useBarChart)
-            // 📊 Столбчатая диаграмма для сложных случаев
-            SizedBox(
-              height: 200,
-              child: BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.center,  // Выравниваем по центру
-                  groupsSpace: 12,                       // Делаем столбцы ближе друг к другу (было стандартное 16, потом 8, 10)
-                  maxY: results.values.reduce((a, b) => a > b ? a : b).toDouble() + 2,
-                  barTouchData: BarTouchData(enabled: false),
-                  titlesData: FlTitlesData(
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          final index = value.toInt();
-                          if (index >= results.length) return const Text('');
-                          return Text(
-                            results.keys.toList()[index],
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                          );
-                        },
+    final useBarChart = results.length > 5; // Если много генотипов — столбцы
+    return Card(
+      color: Colors.purple[50],
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Text('📊 Генотипы', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            if (useBarChart)
+              // 📊 СТОЛБЧАТАЯ ДИАГРАММА
+              SizedBox(
+                height: 200,
+                child: BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.center,
+                    groupsSpace: 12,
+                    maxY: results.values.reduce((a, b) => a > b ? a : b).toDouble() + 2,
+                    barTouchData: BarTouchData(enabled: false),
+                    titlesData: FlTitlesData(
+                      leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            final index = value.toInt();
+                            if (index >= results.length) return const Text('');
+                            return Text(
+                              results.keys.toList()[index],
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                            );
+                          },
+                        ),
                       ),
                     ),
+                    gridData: FlGridData(show: false),
+                    borderData: FlBorderData(show: false),
+                    barGroups: results.entries.map((e) {
+                      return BarChartGroupData(
+                        x: results.keys.toList().indexOf(e.key),
+                        barRods: [
+                          BarChartRodData(
+                            toY: e.value.toDouble(),
+                            color: _colorFor(e.key),
+                            width: 15,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ],
+                      );
+                    }).toList(),
                   ),
-                  gridData: FlGridData(show: false),
-                  borderData: FlBorderData(show: false),
-                  barGroups: results.entries.map((e) {
-                    return BarChartGroupData(
-                      x: results.keys.toList().indexOf(e.key),
-                      barRods: [
-                        BarChartRodData(
-                          toY: e.value.toDouble(),
-                          color: _colorFor(e.key),
-                          width: 15,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                ),
+              )
+            else
+              // 🥧 КРУГОВАЯ ДИАГРАММА
+              SizedBox(
+                height: 180,
+                child: PieChart(
+                  PieChartData(
+                    sections: results.entries.map((e) {
+                      final total = isDihybrid ? 16 : 4;
+                      final pct = (e.value / total * 100).toInt();
+                      return PieChartSectionData(
+                        value: e.value.toDouble(),
+                        title: '${e.key}\n$pct%',
+                        color: _colorFor(e.key),
+                        radius: 45,
+                        titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                      );
+                    }).toList(),
+                    sectionsSpace: 1,
+                    centerSpaceRadius: 25,
+                  ),
                 ),
               ),
-            )
-          else
-            // 🥧 Круговая диаграмма для простых случаев
-            SizedBox(
-              height: 180,
-              child: PieChart(
-                PieChartData(
-                  sections: results.entries.map((e) {
-                    final total = isDihybrid ? 16 : 4;
-                    final pct = (e.value / total * 100).toInt();
-                    return PieChartSectionData(
-                      value: e.value.toDouble(),
-                      title: '${e.key}\n$pct%',
-                      color: _colorFor(e.key),
-                      radius: 45,
-                      titleStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
-                    );
-                  }).toList(),
-                  sectionsSpace: 1,
-                  centerSpaceRadius: 25,
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
+  // 📈 Список результатов с процентами и фенотипами
   Widget _buildStats() {
     final total = isDihybrid ? 16 : 4;
     return Card(
@@ -437,6 +604,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // 🎨 Определение цвета для генотипа
   Color _colorFor(String g) {
     if (isDihybrid) {
       if (g.contains('A') && g.contains('B')) return Colors.blue;
