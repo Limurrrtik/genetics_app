@@ -143,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
   // 📄 ЭКСПОРТ В PDF
   // ════════════════════════════════════════════════════════════════════════════
   
-  // 📄 Генерация и скачивание PDF
+  // 📥 Генерация и скачивание PDF с результатами
   Future<void> _downloadPdf() async {
     final pdf = pw.Document();
     final font = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
@@ -193,13 +193,11 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
     
-    // Создаём байты PDF
+    // Создаём байты PDF и сразу предлагаем скачать
     final bytes = await pdf.save();
-    
-    // Скачиваем файл напрямую (без диалога печати)
     await Printing.sharePdf(bytes: bytes, filename: 'genetics_result.pdf');
   }
-  
+
   // 📊 Построение таблицы для PDF
   List<pw.TableRow> _buildPdfPunnettTable(pw.Font ttf) {
     final size = isDihybrid ? 4 : 2;
@@ -250,9 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ────────────────────────────────────────────────────────────────────────
-      // 🔝 ШАПКА ПРИЛОЖЕНИЯ (AppBar)
-      // ────────────────────────────────────────────────────────────────────────
+      // 🔝 ШАПКА ПРИЛОЖЕНИЯ
       appBar: AppBar(
         title: const Text('🧬 Генетика для начинающих', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.green[700],
@@ -280,114 +276,153 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       
-      // ────────────────────────────────────────────────────────────────────────
-      // 📋 ОСНОВНОЕ ТЕЛО ЭКРАНА (прокручиваемое)
-      // ────────────────────────────────────────────────────────────────────────
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              // 🎛 КАРТОЧКА: Выбор режима скрещивания (Моно/Ди)
-              Card(
-                color: Colors.teal[50],
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      const Text('Режим скрещивания:',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      const SizedBox(height: 8),
-                      ToggleButtons(
-                        isSelected: [!isDihybrid, isDihybrid],
-                        onPressed: (i) => setState(() {
-                          isDihybrid = i == 1;
-                          hasResults = false;
-                        }),
-                        borderRadius: BorderRadius.circular(8),
-                        children: const [
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('Моно')),
-                          Padding(padding: EdgeInsets.symmetric(horizontal: 16),
-                              child: Text('Ди')),
-                        ],
+      // 🖼️ ТЕЛО ЭКРАНА С ФОНОМ И БЕЛЫМ БЛОКОМ
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1️⃣ ФОНОВОЕ ИЗОБРАЖЕНИЕ (ДНК) С ПРОЗРАЧНОСТЬЮ 15%
+          Opacity(
+            opacity: 0.85, // 0.85 = 85% видимости, 15% прозрачности
+            child: Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('assets/images/dna_bg.png'), // Твоя картинка
+                  fit: BoxFit.cover, // Растягиваем на весь экран
+                ),
+              ),
+            ),
+          ),
+          
+          // 2️⃣ БЕЛЫЙ БЛОК ПО ЦЕНТРУ (поверх фона)
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0), // Отступ от краёв экрана
+              child: Center(
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 800),  
+                  decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.80), // Белый с лёгкой прозрачностью
+                  borderRadius: BorderRadius.circular(24), // Закруглённые углы
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 20,
+                      offset: Offset(0, 10), // Тень снизу
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              // 🎲 КНОПКА: Случайный эксперимент (для обоих режимов)
-              ElevatedButton.icon(
-                onPressed: _randomExperiment,
-                icon: const Icon(Icons.casino),
-                label: const Text('🎲 Случайный эксперимент'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[300],
-                  foregroundColor: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0), // Внутренние отступы белого блока
+                      child: Column(
+                        children: [
+                          // 🎛 КАРТОЧКА: Выбор режима скрещивания (Моно/Ди)
+                          Card(
+                            color: Colors.teal[50],
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                children: [
+                                  const Text('Режим скрещивания:',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  ToggleButtons(
+                                    isSelected: [!isDihybrid, isDihybrid],
+                                    onPressed: (i) => setState(() {
+                                      isDihybrid = i == 1;
+                                      hasResults = false;
+                                    }),
+                                    borderRadius: BorderRadius.circular(8),
+                                    children: const [
+                                      Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Моно')),
+                                      Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Ди')),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          
+                          // 🎲 КНОПКА: Случайный эксперимент
+                          ElevatedButton.icon(
+                            onPressed: _randomExperiment,
+                            icon: const Icon(Icons.casino),
+                            label: const Text('🎲 Случайный эксперимент'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[300],
+                              foregroundColor: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
 
-              // 🧬 ВЫБОР ПРИЗНАКОВ (только для "Ди")
-              if (isDihybrid) ...[
-                _buildDropdown('Признак 1 (A/a)', trait1, (v) => setState(() { trait1 = v; hasResults = false; })),
-                const SizedBox(height: 8),
-                _buildDropdown('Признак 2 (B/b)', trait2, (v) => setState(() { trait2 = v; hasResults = false; })),
-                const SizedBox(height: 16),
-              ],
+                          // 🧬 ВЫБОР ПРИЗНАКОВ (только для "Ди")
+                          if (isDihybrid) ...[
+                            _buildDropdown('Признак 1 (A/a)', trait1, (v) => setState(() { trait1 = v; hasResults = false; })),
+                            const SizedBox(height: 8),
+                            _buildDropdown('Признак 2 (B/b)', trait2, (v) => setState(() { trait2 = v; hasResults = false; })),
+                            const SizedBox(height: 16),
+                          ],
 
-              // 👨‍👩‍👧 КАРТОЧКИ РОДИТЕЛЕЙ
-              _buildParent('Родитель 1', p1t1, p1t2, (g1, g2) => setState(() { p1t1 = g1; p1t2 = g2; hasResults = false; })),
-              const SizedBox(height: 12),
-              _buildParent('Родитель 2', p2t1, p2t2, (g1, g2) => setState(() { p2t1 = g1; p2t2 = g2; hasResults = false; })),
-              const SizedBox(height: 20),
+                          // 👨‍👩‍ КАРТОЧКИ РОДИТЕЛЕЙ
+                          _buildParent('Родитель 1', p1t1, p1t2, (g1, g2) => setState(() { p1t1 = g1; p1t2 = g2; hasResults = false; })),
+                          const SizedBox(height: 12),
+                          _buildParent('Родитель 2', p2t1, p2t2, (g1, g2) => setState(() { p2t1 = g1; p2t2 = g2; hasResults = false; })),
+                          const SizedBox(height: 20),
 
-              // 🧬 КНОПКА: Запустить скрещивание
-              ElevatedButton(
-                onPressed: _runCross,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
-                ),
-                child: Text(
-                  isDihybrid ? '🧬 Скрестить (2 признака)' : '🧬 Скрестить',
-                  style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              // 📄 КНОПКА: Скачать PDF (появляется только после скрещивания)
-              if (hasResults)
-                ElevatedButton.icon(
-                  onPressed: _downloadPdf,
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('📄 Скачать PDF'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red[300],
-                    foregroundColor: Colors.white,
+                          // 🧬 КНОПКА: Запустить скрещивание
+                          ElevatedButton(
+                            onPressed: _runCross,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green[700],
+                              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                            ),
+                            child: Text(
+                              isDihybrid ? '🧬 Скрестить (2 признака)' : '🧬 Скрестить',
+                              style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          // 📄 КНОПКА: Скачать PDF (появляется только после скрещивания)
+                          if (hasResults)
+                            ElevatedButton.icon(
+                              onPressed: _downloadPdf,
+                              icon: const Icon(Icons.picture_as_pdf),
+                              label: const Text('📄 Скачать PDF'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red[300],
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          const SizedBox(height: 20),
+
+                          // 📊 РЕЗУЛЬТАТЫ СКРЕЩИВАНИЯ
+                          if (hasResults) ...[
+                            Text(
+                              isDihybrid ? '🧩 Решётка Пеннета (4×4)' : '🧩 Решётка Пеннета (2×2)',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildGrid(), // Сама решётка
+                            const SizedBox(height: 20),
+                            _buildChart(), // Диаграмма
+                            const SizedBox(height: 16),
+                            _buildStats(), // Список с процентами
+                          ],
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              const SizedBox(height: 20),
-
-              // 📊 РЕЗУЛЬТАТЫ СКРЕЩИВАНИЯ (показываются после нажатия "Скрестить")
-              if (hasResults) ...[
-                // Заголовок решётки
-                Text(
-                  isDihybrid ? '🧩 Решётка Пеннета (4×4)' : '🧩 Решётка Пеннета (2×2)',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 10),
-                _buildGrid(), // Сама решётка
-                const SizedBox(height: 20),
-                _buildChart(), // Диаграмма (круг или столбцы)
-                const SizedBox(height: 16),
-                _buildStats(), // Список результатов с процентами
-              ],
-            ],
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -410,7 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // 👨‍👩‍👧 Карточка родителя с выбором генотипов
+  // 👨‍‍👧 Карточка родителя с выбором генотипов
   Widget _buildParent(String title, String t1, String t2, void Function(String, String) onChange) {
     return Card(
       child: Padding(
